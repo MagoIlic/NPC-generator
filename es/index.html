@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de NPCs Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Generador de NPCs</h1>
+        
+            <div class="controles">
+                 <div class="npc-quick-row">
+                    <button id="btn-rapido" class="btn tipo-ciudadano">NPC Rápido</button>
+                    <button id="btn-custom" class="btn tipo-ciudadano">NPC a medida</button>
+                    <button id="btn-abrir-biblioteca" class="btn tipo-ciudadano">Biblioteca NPCs</button>
+                 </div>
+
+            <div class="botones-grid">
+                <div class="nivel-grid-item">
+                  <label for="nivel-input">Nivel (1-10) </label>
+                  <input type="number" id="nivel-input" min="1" max="10" value="1">
+                </div>
+                <button id="btn-guerrero" class="btn tipo-combate">Guerrero</button>
+                <button id="btn-barbaro" class="btn tipo-combate">Bárbaro</button>
+                <button id="btn-sigilo" class="btn tipo-combate">Pícaro (Sigilo)</button>
+                <button id="btn-monje" class="btn tipo-combate">Monje</button>
+                <button id="btn-divino" class="btn tipo-spellcaster">Clérigo (Divino)</button>
+                <button id="btn-arcano" class="btn tipo-spellcaster">Mago (Arcano)</button>
+                <button id="btn-naturaleza" class="btn tipo-spellcaster">Druida (Naturaleza)</button>
+                <button id="btn-paladin" class="btn tipo-hibrido">Paladín</button>
+                <button id="btn-ranger" class="btn tipo-hibrido">Ranger</button>
+            </div>
+        </div>
+
+        <div id="resultado">
+            <p class="placeholder">Selecciona un tipo de NPC para generar...</p>
+        </div>
+        <div class="designer-credit designer-credit--static">
+          designed by @joseilicgarcia
+        </div>
+
+    </div>
+
+
+
+    <!-- Modal: NPC a medida -->
+    <div id="npc-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="npc-modal-title">
+            <div class="modal-header">
+                <h2 id="npc-modal-title">NPC a medida</h2>
+                <button id="btn-modal-close" class="btn-action-modal" type="button">Cerrar</button>
+            </div>
+
+            <div class="modal-body">
+                <p class="modal-help">Marca 1 opción por sección (o deja en Aleatorio).</p>
+
+                <div class="modal-grid">
+                    <div class="modal-section">
+                      <h3>Especie</h3>
+                      <div class="modal-options">
+                        <label class="opt" for="select-especie">
+                          <span>Elige</span>
+                          <select id="select-especie"></select>
+                        </label>
+                      </div>
+                    </div>
+
+
+                    <div class="modal-section">
+                        <h3>Ubicación</h3>
+                        <div id="modal-ubicacion" class="modal-options">
+                            <label class="opt"><input type="checkbox" name="ubicacion" value="random" checked> Aleatorio</label>
+                            <label class="opt"><input type="checkbox" name="ubicacion" value="ciudad"> Metrópolis/Ciudad</label>
+                            <label class="opt"><input type="checkbox" name="ubicacion" value="pueblo"> Pueblo/Aldea</label>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h3>Clase social</h3>
+                        <div id="modal-clase" class="modal-options">
+                            <label class="opt"><input type="checkbox" name="clase" value="random" checked> Aleatorio</label>
+                            <label class="opt"><input type="checkbox" name="clase" value="pobre"> Trabajadora</label>
+                            <label class="opt"><input type="checkbox" name="clase" value="media"> Media</label>
+                            <label class="opt"><input type="checkbox" name="clase" value="rica"> Adinerada</label>
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h3>Actitud</h3>
+                        <div id="modal-actitud" class="modal-options"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="btn-modal-generate" class="btn tipo-ciudadano" type="button">Generar NPC</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+
+    <script src="trinkets_es.js"></script>
+    <script src="data_npc.js"></script>
+    <script src="data_npc_adventurer.js"></script>
+    <script src="script.js"></script>
+    <!-- Modal: Biblioteca de NPCs -->
+    <div id="library-modal-backdrop" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="library-modal-title">
+        <div class="modal-header">
+          <h2 id="library-modal-title">Biblioteca de NPCs</h2>
+          <button id="btn-library-close" class="btn-action-modal" type="button">Cerrar</button>
+        </div>
+
+        <div class="modal-body">
+          <p class="modal-help">Selecciona un NPC para cargarlo o elimínalo.</p>
+          <div id="library-list" class="library-list"></div>
+        </div>
+      </div>
+    </div>
+
+</body>
+</html>
