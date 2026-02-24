@@ -1,0 +1,1130 @@
+
+/* ==========================================================================
+   CONFIGURACIÓN Y UTILIDADES
+   ========================================================================== */
+// Variable global para rastrear el NPC actual
+let ultimoNPCGenerado = null;
+
+// Seleccionador aleatorio
+const getRandom = (arr) => {
+    if (!arr || arr.length === 0) return "";
+    return arr[Math.floor(Math.random() * arr.length)];
+};
+
+function obtenerTipoCategoria(especie) {
+  const small = new Set(["Halfling", "Gnome", "Goblin", "Kobold"]);
+  const categoria = small.has(especie) ? "small" : "medium";
+  return `Humanoid ${categoria}`;
+}
+
+function conSigno(n) {
+  const num = Number(n) || 0;
+  return num >= 0 ? `+${num}` : `${num}`;
+}
+
+
+
+function obtenerTipoGeneral(subTipo) {
+
+    if (!subTipo) return null;
+
+    if (subTipo.startsWith("spellcaster_")) return "spellcaster";
+    if (subTipo.startsWith("hibrido_")) return "hibrido";
+    if (subTipo.startsWith("combate_")) return "combate";
+
+    return null;
+}
+
+function getRandomUnique(arr, cantidad) {
+    if (!arr || arr.length === 0) return [];
+
+    // Copia para no modificar el original
+    const copia = [...arr];
+    const resultado = [];
+
+    const max = Math.min(cantidad, copia.length);
+
+    for (let i = 0; i < max; i++) {
+        const index = Math.floor(Math.random() * copia.length);
+        resultado.push(copia[index]);
+        copia.splice(index, 1); // elimina para evitar repetición
+    }
+
+    return resultado;
+}
+
+// Dados para niveles y variaciones
+const roll = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+// ==========================================================================
+// NPC CIVIL A MEDIDA (con overrides opcionales)
+// ==========================================================================
+function generarNPCCivilAMedida(opciones = {}) {
+    const {
+        especie: especieForzada = null,     // string o null
+        contexto: contextoForzado = null,   // 'town' | 'city' | null
+        estatus: estatusForzado = null,     // 'poor' | 'middle' | 'wealthy' | null
+        actitud: actitudForzada = null      // string (de DATA.estados) o null
+    } = opciones;
+
+    const nivel = 1;
+
+    // Contexto 50/50 si no se fuerza
+    const contexto = (contextoForzado === 'town' || contextoForzado === 'city')
+        ? contextoForzado
+        : (Math.random() < 0.5 ? 'town' : 'city');
+
+    // Estatus: si no se fuerza, mantiene tu lógica original por contexto
+    let estatus;
+    if (estatusForzado === 'poor' || estatusForzado === 'middle' || estatusForzado === 'wealthy') {
+        estatus = estatusForzado;
+    } else {
+        if (contexto === 'town') estatus = Math.random() < 0.7 ? 'poor' : 'middle';
+        else estatus = Math.random() < 0.7 ? 'middle' : 'wealthy';
+    }
+
+    // Especie: si no se fuerza, aleatoria
+    const especie = (especieForzada && DATA.nombres?.[especieForzada]) ? especieForzada : getRandom(DATA.especies);
+
+    // Nombre (siempre habrá por especie, pero dejo fallback seguro)
+    const nombresGlobales =
+        DATA.nombres_globales ||
+        DATA.nombres?.Nombres_Globales ||
+        DATA.nombres?.["Nombres_Globales"] ||
+        [];
+    const nombre = getRandom(DATA.nombres[especie] || nombresGlobales);
+
+    // Construcción NPC civil
+    const npc = {
+        nombre,
+        especie,
+        nivel,
+        personalidad: actitudForzada || getRandom(DATA.estados),
+        voz: getRandom(DATA.voces),
+        acting: getRandom(DATA.acting),
+        fisico: getRandom(DATA.fisico),
+        trinket: (typeof TRINKETS_MASTER_LIST !== 'undefined') ? getRandom(TRINKETS_MASTER_LIST) : "Una moneda común gastada",
+        want: getRandom(DATA.wants),
+        twist: getRandom(DATA.twists),
+        esAventurero: false,
+        tipoGeneral: "ciudadano",
+        estatusSocial: estatus,
+        contextoCivil: contexto
+    };
+
+    npc.profesion = getRandom(DATA.profesiones[contexto][estatus]);
+
+    const poolRopa = [
+        ...DATA.ropas[estatus],
+        ...DATA.ropas_extra[estatus]
+    ];
+    npc.ropa = getRandom(poolRopa);
+
+    if (estatus === 'poor') {
+        npc.hp = roll(1, 3);
+        npc.ac = roll(8, 9);
+        npc.equipo = "Basic tools and modest possesions";
+    }
+    if (estatus === 'middle') {
+        npc.hp = roll(2, 4);
+        npc.ac = roll(9, 10);
+        npc.equipo = "Tools of the trade and personal belongings of moderate value";
+    }
+    if (estatus === 'wealthy') {
+        npc.hp = roll(3, 5);
+        npc.ac = roll(10, 11);
+        const tieneGuardaespaldas = Math.random() < 0.4;
+        npc.equipo = tieneGuardaespaldas
+            ? "Luxory objetcts and personal bodyguards"
+            : "Luxory objects and discrete jewelry";
+    }
+    npc.velocidad = 30; // o "30"
+    npc.iniciativa = calcularIni(npc.tipoGeneral, nivel);
+    npc.tipoCategoria = obtenerTipoCategoria(npc.especie);
+
+
+    return npc;
+}
+
+// ==========================================================================
+// MODAL: NPC A MEDIDA
+// ==========================================================================
+function abrirModalNPC() {
+    const backdrop = document.getElementById('npc-modal-backdrop');
+    if (!backdrop) return;
+
+    // Poblar select de especies (solo si está vacío)
+    const selectEspecie = document.getElementById('select-especie');
+    if (selectEspecie && selectEspecie.options.length === 0) {
+        // opción Aleatorio
+        const optRand = document.createElement('option');
+        optRand.value = 'random';
+        optRand.textContent = 'Random';
+        selectEspecie.appendChild(optRand);
+
+        // especies reales
+        DATA.especies.forEach(esp => {
+            const opt = document.createElement('option');
+            opt.value = esp;
+            opt.textContent = esp;
+            selectEspecie.appendChild(opt);
+        });
+
+        selectEspecie.value = 'random';
+    }
+
+
+    // Poblar actitud (solo si está vacío)
+    const actitudBox = document.getElementById('modal-actitud');
+    if (actitudBox && actitudBox.childElementCount === 0) {
+        actitudBox.insertAdjacentHTML(
+            'beforeend',
+            `<label class="opt"><input type="checkbox" name="actitud" value="random" checked> Random</label>`
+        );
+
+        DATA.estados.forEach(est => {
+            actitudBox.insertAdjacentHTML(
+                'beforeend',
+                `<label class="opt"><input type="checkbox" name="actitud" value="${est}"> ${est}</label>`
+            );
+        });
+    }
+
+    // Single-select por grupo (checkboxes que se comportan como radio)
+    habilitarSingleSelectModal();
+
+    backdrop.classList.add('is-open');
+    backdrop.setAttribute('aria-hidden', 'false');
+}
+
+function leerEspecieSelect() {
+    const select = document.getElementById('select-especie');
+    if (!select) return null;
+    if (!select.value || select.value === 'random') return null;
+    return select.value;
+}
+
+
+function cerrarModalNPC() {
+    const backdrop = document.getElementById('npc-modal-backdrop');
+    if (!backdrop) return;
+    backdrop.classList.remove('is-open');
+    backdrop.setAttribute('aria-hidden', 'true');
+}
+
+function habilitarSingleSelectModal() {
+    const backdrop = document.getElementById('npc-modal-backdrop');
+    if (!backdrop) return;
+
+    // Evitar registrar el handler 100 veces
+    if (backdrop.dataset.singleSelectReady === "1") return;
+    backdrop.dataset.singleSelectReady = "1";
+
+    backdrop.addEventListener('change', (e) => {
+        const target = e.target;
+        if (!target || target.type !== 'checkbox' || !target.name) return;
+
+        const name = target.name;
+        const group = backdrop.querySelectorAll(`input[type="checkbox"][name="${name}"]`);
+
+        if (target.checked) {
+            group.forEach(o => { if (o !== target) o.checked = false; });
+        } else {
+            // si queda todo desmarcado, vuelve a Aleatorio
+            const anyChecked = Array.from(group).some(o => o.checked);
+            if (!anyChecked) {
+                const rnd = Array.from(group).find(o => o.value === 'random');
+                if (rnd) rnd.checked = true;
+            }
+        }
+    });
+}
+
+function leerSeleccionModal(name) {
+    const backdrop = document.getElementById('npc-modal-backdrop');
+    if (!backdrop) return null;
+    const checked = backdrop.querySelector(`input[type="checkbox"][name="${name}"]:checked`);
+    if (!checked || checked.value === 'random') return null;
+    return checked.value;
+}
+
+function generarDesdeModal() {
+    const especie = leerEspecieSelect();
+    const contexto = leerSeleccionModal('ubicacion'); // 'city'|'town'|null
+    const estatus = leerSeleccionModal('clase');      // 'poor'|'middle'|'wealthy'|null
+    const actitud = leerSeleccionModal('actitud');    // string|null
+
+    const npc = generarNPCCivilAMedida({ especie, contexto, estatus, actitud });
+    mostrarNPC(npc);
+    cerrarModalNPC();
+}
+
+
+/* ==========================================================================
+   LÓGICA MATEMÁTICA DE COMBATE
+   ========================================================================== */
+
+function calcularHP(tipoGeneral, lvl) {
+    const baseHP = {
+        "spellcaster": 6,
+        "hibrido": 8,
+        "combate": 10
+    };
+    
+    const base = baseHP[tipoGeneral] || 6;
+    // Fórmula: HD base + (Nivel-1 * promedio redondeado hacia arriba)
+    return base + ((lvl - 1) * (Math.floor(base / 2) + 1));
+}
+
+function calcularAC(tipoGeneral, lvl) {
+    const baseAC = {
+        "spellcaster": 11,
+        "hibrido": 13,
+        "combate": 15
+    };
+    const base = baseAC[tipoGeneral] || 11;
+    // Sube +1 cada 3 niveles aprox.
+    return base + Math.floor(lvl / 3);
+}
+
+function calcularIni(tipoGeneral, lvl) {
+  // Ciudadano: random entre -2 y 1 (cada vez que generas el NPC)
+  if (tipoGeneral === "ciudadano") {
+    return Math.floor(Math.random() * 4) - 2; // -2, -1, 0, 1
+  }
+
+  // Spellcaster: 1-2:0, 3-5:1, 6-8:2, 9-10:3
+  if (tipoGeneral === "spellcaster") {
+    return Math.floor(lvl / 3); // [0,0,1,1,1,2,2,2,3,3] del 1 al 10
+  }
+
+  // Híbrido y Combate: como lo tienes ahora
+  const base = (tipoGeneral === "hibrido") ? 1
+             : (tipoGeneral === "combate") ? 2
+             : 0;
+
+  return base + Math.floor(lvl / 3);
+}
+
+
+/* ==========================================================================
+   GENERADOR PRINCIPAL DE NPC
+   ========================================================================== */
+
+function generarNPC(tipoGlobal, subTipo = null, nivelManual = null) {
+    // 1. Determinar Nivel (1-10)
+    let nivel;
+
+    if (tipoGlobal === "aventurero") {
+        nivel = parseInt(nivelManual);
+        if (!nivel || nivel < 1 || nivel > 10) {
+            nivel = 1; // fallback mínimo seguro
+        }
+    } else {
+        nivel = 1;
+    }
+        
+    // 2. Determinar Especie y Nombre (Desde data_npc.js)
+    const especie = getRandom(DATA.especies);
+    const nombre = getRandom(DATA.nombres[especie] || DATA.nombres_globales);
+
+    // 3. Objeto base del NPC
+    let npc = {
+        nombre: nombre,
+        especie: especie,
+        nivel: nivel,
+        personalidad: getRandom(DATA.estados),
+        voz: getRandom(DATA.voces),
+        acting: getRandom(DATA.acting),
+        fisico: getRandom(DATA.fisico),
+        trinket: typeof TRINKETS_MASTER_LIST !== 'undefined' ? getRandom(TRINKETS_MASTER_LIST) : "A wierd looking coin from a lost civilization",
+        want: getRandom(DATA.wants),
+        twist: getRandom(DATA.twists),
+        esAventurero: tipoGlobal === 'aventurero'
+    };
+
+    const tipoGeneral = obtenerTipoGeneral(subTipo);
+    npc.tipoGeneral = tipoGeneral;
+
+    npc.velocidad = 30; // pies, siempre
+    npc.iniciativa = calcularIni(npc.tipoGeneral, nivel);
+    npc.tipoCategoria = obtenerTipoCategoria(npc.especie);
+
+
+    // 4. Lógica de Datos Específicos
+    if (npc.esAventurero && npc_aventurero[subTipo]) {
+        const arq = npc_aventurero[subTipo];
+        npc.arquetipoNombre = subTipo.replace(/_/g, " ");
+        npc.profesion = getRandom(arq.profesiones);
+        
+        // Determinar tramo de poder (Bajo 1-3, Medio 4-7, Alto 8-10)
+        let tramo = 'bajo';
+        if (nivel >= 4) tramo = 'medio';
+        if (nivel >= 8) tramo = 'alto';
+
+
+        // Stats y Habilidades
+        npc.hp = calcularHP(tipoGeneral, nivel);
+        npc.ac = calcularAC(tipoGeneral, nivel);
+        
+        // Manejo de Habilidad Especial (Soporta Array o Objeto por niveles)
+        if (Array.isArray(arq.especial)) {
+            npc.especial = arq.especial[0]; // Para Casters
+        } else {
+            npc.especial = arq.especial[tramo]; // Para Marciales
+        }
+
+        // Equipo Progresivo
+        const eq = arq.equipo_progresivo[tramo];
+        npc.equipo = `${getRandom(eq.arma)}, ${getRandom(eq.items)} y ${eq.ropa}`;
+
+        // ==========================
+        // LÓGICA DE MAGIA
+        // ==========================
+
+        if (npc.tipoGeneral === "spellcaster" || npc.tipoGeneral === "hibrido") {
+            // --------------------------
+            // 1. Slots por día según tramo
+            // --------------------------
+            const infoTramo = progresion_global[tramo];
+            npc.spellsPorDia = infoTramo.spells_day?.[npc.tipoGeneral] || null;
+            // --------------------------
+            // 2. Estructura base de magia
+            // --------------------------
+            let trucos = [];
+            let hechizosPorNivel = {
+                lvl1: [],
+                lvl2: [],
+                lvl3: []
+            };
+            // ================= SPELLCASTER =================
+            if (npc.tipoGeneral === "spellcaster") {
+
+                // 1 cantrip utilidad + 1 ataque
+                if (arq.cantrips_utilidad?.length) {
+                    trucos.push(...getRandomUnique(arq.cantrips_utilidad, 1));
+                }
+
+                if (arq.cantrips_ataque?.length) {
+                    trucos.push(...getRandomUnique(arq.cantrips_ataque, 1));
+                }
+
+                // -------- ESCALADO POR NIVEL --------
+
+                if (nivel >= 1 && nivel <= 3) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 2));
+                }
+
+                else if (nivel >= 4 && nivel <= 6) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 3));
+
+                    if (arq.hechizos_lvl2)
+                        hechizosPorNivel.lvl2.push(...getRandomUnique(arq.hechizos_lvl2, 1));
+                }
+
+                else if (nivel >= 7 && nivel <= 9) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 3));
+
+                    if (arq.hechizos_lvl2)
+                        hechizosPorNivel.lvl2.push(...getRandomUnique(arq.hechizos_lvl2, 2));
+
+                    if (arq.hechizos_lvl3)
+                        hechizosPorNivel.lvl3.push(...getRandomUnique(arq.hechizos_lvl3, 1));
+                }
+
+                else if (nivel === 10) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 3));
+
+                    if (arq.hechizos_lvl2)
+                        hechizosPorNivel.lvl2.push(...getRandomUnique(arq.hechizos_lvl2, 2));
+
+                    if (arq.hechizos_lvl3)
+                        hechizosPorNivel.lvl3.push(...getRandomUnique(arq.hechizos_lvl3, 2));
+                }
+            }
+            // ================= HÍBRIDO =================
+            if (npc.tipoGeneral === "hibrido") {
+
+                // 1 cantrip utilidad
+                if (arq.cantrips_utilidad?.length) {
+                    trucos.push(...getRandomUnique(arq.cantrips_utilidad, 1));
+                }
+
+                // Nivel 3–5
+                if (nivel >= 3 && nivel <= 5) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 2));
+                }
+
+                // Nivel 6–10
+                if (nivel >= 6) {
+                    if (arq.hechizos_lvl1)
+                        hechizosPorNivel.lvl1.push(...getRandomUnique(arq.hechizos_lvl1, 3));
+
+                    if (arq.hechizos_lvl2)
+                        hechizosPorNivel.lvl2.push(...getRandomUnique(arq.hechizos_lvl2, 2));
+                }
+            }
+            // --------------------------
+            // 3. Guardar magia solo si existe
+            // --------------------------
+            const tieneMagia =
+                trucos.length > 0 ||
+                hechizosPorNivel.lvl1.length > 0 ||
+                hechizosPorNivel.lvl2.length > 0 ||
+                hechizosPorNivel.lvl3.length > 0;
+
+            if (tieneMagia) {
+                npc.magia = {
+                    trucos: trucos,
+                    porNivel: hechizosPorNivel
+                };
+            }
+        }
+        // --------------------------
+        // Statblock
+        // --------------------------
+        npc.statblock = construirStatblock(subTipo, nivel);    
+
+    } else {
+        // ==========================
+        // LÓGICA DE CIVILES
+        // ==========================
+
+
+        npc.nivel = 1;
+        npc.tipoGeneral = "ciudadano";
+        // ---------- CONTEXTO ----------
+        let contexto;
+        if (tipoGlobal === "town" || tipoGlobal === "city") {
+          contexto = tipoGlobal;
+        } else {
+          contexto = Math.random() < 0.5 ? "town" : "city";
+        }
+        // ---------- ESTATUS ----------
+        let estatus;
+
+        if (contexto === 'town') {
+            estatus = Math.random() < 0.7 ? 'poor' : 'middle';
+        } else {
+            estatus = Math.random() < 0.7 ? 'middle' : 'wealthy';
+        }
+
+
+        npc.estatusSocial = estatus;
+        npc.contextoCivil = contexto;  // 'town' o 'city'
+
+
+        
+
+        // ---------- PROFESIÓN ----------
+        npc.profesion = getRandom(
+            DATA.profesiones[contexto][estatus]
+        );
+
+        // ---------- ROPA ----------
+        const poolRopa = [
+            ...DATA.ropas[estatus],
+            ...DATA.ropas_extra[estatus]
+        ];
+
+        npc.ropa = getRandom(poolRopa);
+
+        // ---------- HP Y AC ----------
+        if (estatus === 'poor') {
+            npc.hp = roll(1, 3);
+            npc.ac = roll(8, 9);
+            npc.equipo = "Basic tools and modest belongings";
+            npc.velocidad = 30; // pies, siempre
+            npc.iniciativa = calcularIni(npc.tipoGeneral, nivel);
+        }
+
+        if (estatus === 'middle') {
+            npc.hp = roll(2, 4);
+            npc.ac = roll(9, 10);
+            npc.equipo = "Tools of the trade and personal belongings of moderate value";
+            npc.velocidad = 30; // pies, siempre
+            npc.iniciativa = calcularIni(npc.tipoGeneral, nivel);
+        }
+
+        if (estatus === 'wealthy') {
+            npc.hp = roll(3, 5);
+            npc.ac = roll(10, 11);
+            npc.velocidad = 30; // pies, siempre
+            npc.iniciativa = calcularIni(npc.tipoGeneral, nivel);
+
+            const tieneGuardaespaldas = Math.random() < 0.4;
+
+            npc.equipo = tieneGuardaespaldas
+                ? "Luxury objects and personal bodyguards"
+                : "Luxury objects and discrete jewelry";
+        }
+    }
+    
+
+    return npc;
+}
+
+function limpiarVista() {
+  const container = document.getElementById('resultado');
+  if (!container) return;
+
+  container.innerHTML = `
+    <p class="placeholder">Choose an NPC to generate...</p>
+  `;
+}
+
+
+function renderEspecialPorPuntos(especialRaw) {
+  const raw = (especialRaw || "").toString().trim();
+  if (!raw) return `<p><strong>Special Hability</strong></p>`;
+
+  // Divide por ". " (punto seguido). Mantiene el texto sin inventar separadores.
+  const trozos = raw
+    .split(". ")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const lineas = trozos.map(t => {
+    // Si el split se comió el punto, lo dejamos tal cual (no lo necesitamos).
+    const idx = t.indexOf(":");
+    if (idx === -1) {
+      // Fallback por si algún trozo viene sin ":" (idealmente no pasará)
+      return `<p><strong>${t}</strong></p>`;
+    }
+
+    const nombre = t.slice(0, idx).trim();
+    const efecto = t.slice(idx + 1).trim();
+
+    return `<p><strong>${nombre}:</strong> ${efecto}</p>`;
+  });
+
+  return lineas.join("");
+}
+
+
+
+
+/* ==========================================================================
+   RENDERIZADO EN EL DOM
+   ========================================================================== */
+
+function mostrarNPC(npc) {
+    let claseColor = "tipo-ciudadano";
+    if (npc.tipoGeneral === "combate") claseColor = "tipo-combate";
+    if (npc.tipoGeneral === "hibrido") claseColor = "tipo-hibrido";
+    if (npc.tipoGeneral === "spellcaster") claseColor = "tipo-spellcaster";
+    const claseMap = { poor: "Working-Class", middle: "Middle-Class", wealthy: "Wealthy" };
+    const ubicacionMap = { city: "Metropoli/City", town: "Town/Village" };
+
+    const claseTexto = claseMap[npc.estatusSocial];
+    const ubicacionTexto = ubicacionMap[npc.contextoCivil];
+    const tipoCategoriaHTML = `<span class="badge-sub">(${npc.tipoCategoria})</span>`;
+    const claseUbicacionHTML =
+      (claseTexto && ubicacionTexto)
+        ? `<p><strong>Class:</strong> ${claseTexto} (${ubicacionTexto})</p>`
+        : "";
+
+
+    if (npc.arquetipoNombre == "spellcaster Arcano") claseProfesion = "Arcanist"
+    if (npc.arquetipoNombre == "spellcaster Divino") claseProfesion = "Devout"
+    if (npc.arquetipoNombre == "spellcaster Naturaleza") claseProfesion = "Chaman"
+    if (npc.arquetipoNombre == "hibrido Paladin") claseProfesion = "Oathbringer"
+    if (npc.arquetipoNombre == "hibrido Ranger") claseProfesion = "Scout"
+    if (npc.arquetipoNombre == "combate Guerrero") claseProfesion = "Knight"
+    if (npc.arquetipoNombre == "combate Sigilo") claseProfesion = "Spy"
+    if (npc.arquetipoNombre == "combate Monje") claseProfesion = "Fighter"
+    if (npc.arquetipoNombre == "combate Barbaro") claseProfesion = "Mercenary"
+
+    const container = document.getElementById('resultado');
+    if (!container) return;
+
+    // --- NUEVOS ICONOS SVG (SOLO CONTORNO) ---
+    const heartSVG = `
+        <svg class="icon-svg" viewBox="0 0 24 24">
+            <path class="heart-stroke" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>`;
+    
+    const shieldSVG = `
+        <svg class="icon-svg" viewBox="0 0 24 24">
+            <path class="shield-stroke" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>`;
+
+    const statsIconsHTML = `
+        <div class="stats-container">
+            <div class="stat-wrapper" title="HP">
+                ${heartSVG}
+                <span class="stat-value">${npc.hp}</span>
+            </div>
+            <div class="stat-wrapper" title="AC">
+                ${shieldSVG}
+                <span class="stat-value">${npc.ac}</span>
+            </div>
+                <div class="stat-wrapper stat-ini" title="Iniciativa">
+                  <span class="stat-value">${conSigno(npc.iniciativa)}</span>
+                </div>
+
+                <div class="stat-wrapper stat-speed" title="Velocidad">
+                  <span class="stat-value">${npc.velocidad}</span>
+                  <span class="stat-subvalue">feet</span>
+                </div>
+        </div>
+
+
+    `;
+
+
+    // --- BLOQUE DE MECÁNICAS ---
+    let statblockHTML = "";
+    if (npc.statblock) {
+      statblockHTML = `
+        <div class="statblock-container">
+          ${npc.statblock.dc ? `
+            <div class="statblock-line">
+              <span class="statblock-label"><strong>DC:</strong></span>
+              <span class="statblock-value">${npc.statblock.dc} (+${npc.statblock.hechizoBono})</span>
+            </div>
+          ` : ""}
+
+          <div class="statblock-line">
+            <span class="statblock-label"><strong>Saves:</strong></span>
+          </div>
+          <div class="statblock-line">
+            <span class="statblock-value">${npc.statblock.saves.principal}, ${npc.statblock.saves.Base}, ${npc.statblock.saves.Mala}</span>
+          </div>
+
+          <div class="statblock-sep"></div>
+
+          <div class="statblock-line">
+            <span class="statblock-label"><strong>Attacks:</strong></span>
+          </div>
+          <div class="statblock-line">
+            <span class="statblock-sub"><strong>Melee:</strong></span>
+            <span class="statblock-value">+${npc.statblock.ataqueMelee}, hit: ${npc.statblock.melee}</span>
+          </div>
+          <div class="statblock-line">
+            <span class="statblock-sub"><strong>Range:</strong></span>
+            <span class="statblock-value">+${npc.statblock.ataqueRange}, hit: ${npc.statblock.range} (${npc.statblock.ataqueD} feet)</span>
+          </div>
+        </div>
+      `;
+    }
+
+
+    let magiaHTML = "";
+    if (npc.magia && npc.spellsPorDia) {
+        let contenidoMagia = "";
+        if (npc.magia.trucos?.length) contenidoMagia += `<p><strong>Cantrips:</strong> ${npc.magia.trucos.join(", ")}</p>`;
+        Object.keys(npc.magia.porNivel).sort().forEach(nivelKey => {
+            const hechizos = npc.magia.porNivel[nivelKey];
+            const usos = npc.spellsPorDia[nivelKey] || 0;
+            if (hechizos.length > 0 && usos > 0) {
+                contenidoMagia += `<p><strong>Level ${nivelKey.replace("lvl", "")} (${usos}/day):</strong> ${hechizos.join(", ")}</p>`;
+            }
+        });
+        if (contenidoMagia) magiaHTML = `<div class="magia-box"><h3>Magic</h3>${contenidoMagia}</div>`;
+    }
+
+    // 3. Construimos el bloque exterior de acciones y firma
+    const accionesHTML = `
+        <div class="npc-actions-container">
+            <div class="npc-actions-buttons">
+                <button class="btn-action" id="btn-clear">🧹 Clear</button>
+                <button class="btn-action" id="btn-export-img">💾 Export JPG</button>
+                <button class="btn-action" id="btn-copy-prompt">🎨 Copy Prompt for IA</button>
+                <button class="btn-action btn-save" id="btn-save-local">📌 Save</button>
+            </div>
+            
+        </div>
+    `;
+    ultimoNPCGenerado = npc; // Guardamos el objeto para los botones
+
+    // --- RENDER FINAL ---
+    let contenidoFinal = "";
+
+    if (npc.esAventurero) {
+        contenidoFinal = `
+            <div class="npc-card ${claseColor}">
+                <div class="header">
+                    <div class="header-titles">
+                        <h2>${npc.nombre}</h2>
+                        <span class="badge">${npc.especie} - ${claseProfesion}</span>
+                        ${tipoCategoriaHTML}
+                    </div>
+                    
+                </div>
+
+                <div class="npc-grid">
+                    <div class="col-social">
+                        <h3>Social</h3>
+                        ${claseUbicacionHTML}
+                        
+
+                        <p><strong>Trade:</strong> ${npc.profesion}</p>
+                        <p><strong>Looks:</strong> ${npc.fisico}</p>
+                        <p><strong>Voice/Acting:</strong> ${npc.voz}</p>
+                        <p><strong>Attitude:</strong> ${npc.personalidad}</p>
+                        ${npc.ropa ? `<p><strong>Clothes:</strong> ${npc.ropa}</p>` : ""}
+                        <p><strong>Equipment:</strong> ${npc.equipo}</p>
+                        
+                        <div class="flavor-text">
+                            <p><strong>Trinket:</strong> ${npc.trinket}</p>
+                            <p><strong>Motivation:</strong> ${npc.want}</p>
+                            <p><strong>Twist:</strong> <em>"${npc.twist}"</em></p>
+                        </div>
+                    </div>
+
+                    <div class="col-stats">
+                        <h3>Combat - Level ${npc.nivel})</h3>
+                        ${statsIconsHTML}
+                        ${statblockHTML}
+                        <div class="especial-box">
+                          ${renderEspecialPorPuntos(npc.especial)}
+                        </div>
+                        ${npc.magia ? magiaHTML : ""} 
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        contenidoFinal = `
+            <div class="npc-card ${claseColor}">
+                <div class="header">
+                    <div class="header-titles">
+                        <h2>${npc.nombre}</h2>
+                        <span class="badge">${npc.especie}</span>
+                        ${tipoCategoriaHTML}
+                    </div>
+                    ${statsIconsHTML}
+                </div>
+                
+                ${claseUbicacionHTML}
+                <p><strong>Trade:</strong> ${npc.profesion}</p>
+                <p><strong>Looks:</strong> ${npc.fisico}</p>
+                <p><strong>Voice/Acting:</strong> ${npc.voz}</p>
+                <p><strong>Attitude:</strong> ${npc.personalidad}</p>
+                ${npc.ropa ? `<p><strong>Clothes:</strong> ${npc.ropa}</p>` : ""}
+                <p><strong>Equipment:</strong> ${npc.equipo}</p>
+                
+                <div class="especial-box">
+                    <p><strong>Especial:</strong> ${npc.especial || 'Proficient with tools of their trade'}</p>
+                </div>
+
+                <div class="flavor-text">
+                    <p><strong>Trinket:</strong> ${npc.trinket}</p>
+                    <p><strong>Motivation:</strong> ${npc.want}</p>
+                    <p><strong>Twist:</strong> <em>"${npc.twist}"</em></p>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = contenidoFinal + accionesHTML;
+
+}
+
+
+/* ==========================================================================
+   FACTORY DE STATBLOCKS
+   ========================================================================== */
+
+function construirStatblock(subTipo, nivel) {
+    const tipoGeneral = obtenerTipoGeneral(subTipo); // 'Spellcaster', 'Hibrido' o 'Combate'
+    if (!tipoGeneral) return null;
+
+    // 1. Determinar Tramo
+    let tramo = 'bajo';
+    if (nivel >= 10) tramo = 'max';
+    else if (nivel >= 7) tramo = 'alto';
+    else if (nivel >= 4) tramo = 'medio';
+
+    // 2. Obtener Base de Datos (los objetos que definimos: stats_combate, etc.)
+    const mapping = {
+        'spellcaster': stats_spellcaster,
+        'hibrido': stats_hibrido,
+        'combate': stats_combate
+    };
+    const dataBase = mapping[tipoGeneral].base;
+
+    // 3. Obtener Bonos de Progresión
+    // Asumiendo que progresion_global está definido como el objeto de la respuesta anterior
+    const infoTramo = progresion_global[tramo];
+    const llaveTipo = tipoGeneral.toLowerCase();
+    
+    const bonoAtaque = infoTramo.atk[llaveTipo];
+    const bonoHechizo = infoTramo.spell[llaveTipo];
+    const salvaciones = infoTramo.salvaciones[llaveTipo]
+
+
+    // 4. Retornar el objeto listo
+    return {
+        tipo: tipoGeneral,
+        tramo: tramo,
+        ataqueMelee: bonoAtaque.melee,
+        ataqueRange: bonoAtaque.range,
+        ataqueD: bonoAtaque.d,
+        hechizoBono: bonoHechizo,
+        dc: bonoHechizo ? (8 + bonoHechizo) : null,
+        melee: `${dataBase.melee_dado} (${dataBase.melee_tipo})`,
+        range: `${dataBase.range_dado} (${dataBase.range_tipo})`,
+        saves: salvaciones
+    };
+}
+
+function guardarNPC() {
+    if (!ultimoNPCGenerado) return alert("First generate an NPC!");
+
+    // 1. Obtener lo que ya hay en memoria o crear un array vacío
+    let historial = JSON.parse(localStorage.getItem('historial_npcs')) || [];
+    
+    // 2. Añadir el nuevo (con una marca de tiempo para identificarlos)
+    const npcAGuardar = {
+        ...ultimoNPCGenerado,
+        id_guardado: Date.now() 
+    };
+    
+    historial.push(npcAGuardar);
+    
+    // 3. Guardar de nuevo
+    localStorage.setItem('historial_npcs', JSON.stringify(historial));
+    alert(`¡${ultimoNPCGenerado.nombre} Saved to the library!`);
+}
+
+
+function getHistorialNPCs() {
+  return JSON.parse(localStorage.getItem('historial_npcs')) || [];
+}
+
+function setHistorialNPCs(arr) {
+  localStorage.setItem('historial_npcs', JSON.stringify(arr));
+}
+
+function abrirBibliotecaModal() {
+  const backdrop = document.getElementById('library-modal-backdrop');
+  if (!backdrop) return;
+
+  renderBibliotecaLista();
+  backdrop.classList.add('is-open');
+  backdrop.setAttribute('aria-hidden', 'false');
+}
+
+function cerrarBibliotecaModal() {
+  const backdrop = document.getElementById('library-modal-backdrop');
+  if (!backdrop) return;
+
+  backdrop.classList.remove('is-open');
+  backdrop.setAttribute('aria-hidden', 'true');
+}
+
+function renderBibliotecaLista() {
+  const list = document.getElementById('library-list');
+  if (!list) return;
+
+  const historial = getHistorialNPCs();
+
+  if (historial.length === 0) {
+    list.innerHTML = `<div class="library-item"><div class="library-item-title">Library is empty.</div></div>`;
+    return;
+  }
+
+  // Más nuevo primero (opcional)
+  const ordenado = [...historial].sort((a,b) => (b.id_guardado||0) - (a.id_guardado||0));
+
+  list.innerHTML = ordenado.map(npc => {
+    const id = npc.id_guardado;
+    const nombre = npc.nombre || '(No name)';
+    const especie = npc.especie || '(no species)';
+    return `
+      <div class="library-item">
+        <div class="library-item-title">
+          <strong>${nombre}</strong> — ${especie}
+        </div>
+        <div class="library-item-actions">
+          <button class="btn-action-modal" data-action="open" data-id="${id}">Open</button>
+          <button class="btn-action btn-danger" data-action="delete" data-id="${id}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function abrirNPCGuardadoPorId(idGuardado) {
+  const historial = getHistorialNPCs();
+  const npc = historial.find(n => String(n.id_guardado) === String(idGuardado));
+  if (!npc) return;
+
+  mostrarNPC(npc);
+  cerrarBibliotecaModal();
+}
+
+function eliminarNPCGuardadoPorId(idGuardado) {
+  const historial = getHistorialNPCs();
+  const npc = historial.find(n => String(n.id_guardado) === String(idGuardado));
+
+  if (!npc) return;
+  const ok = confirm(`Delete "${npc.nombre}" from library?`);
+  if (!ok) return;
+
+  const nuevo = historial.filter(n => String(n.id_guardado) !== String(idGuardado));
+  setHistorialNPCs(nuevo);
+  renderBibliotecaLista();
+}
+
+
+function copiarPromptIA() {
+    if (!ultimoNPCGenerado) return;
+
+    const npc = ultimoNPCGenerado;
+    // Construimos una descripción visual rica
+    const prompt = `Fantasy character portrait of an ${npc.especie} ${npc.profesion}, 
+    physical description: ${npc.fisico}. 
+    Clothing: ${npc.ropa || 'traveller clothes'}. 
+    Equiped with: ${npc.equipo}. 
+    Atmosphere: ${npc.personalidad}, high fantasy art style, detailed digital painting, 
+    dungeons and dragons aesthetic, cinematography lighting, 4k resulotuon.`;
+
+    navigator.clipboard.writeText(prompt).then(() => {
+        const btn = document.getElementById('btn-copy-prompt');
+        const textoOriginal = btn.innerText;
+        btn.innerText = "✅ Coppied!";
+        setTimeout(() => btn.innerText = textoOriginal, 2000);
+    });
+}
+async function exportarJPG() {
+  const card = document.querySelector('#resultado .npc-card');
+  if (!card) return alert("First generate an NPC to export.");
+
+  // Opcional: esperar a que carguen fuentes
+  try { if (document.fonts?.ready) await document.fonts.ready; } catch (_) {}
+
+  const canvas = await html2canvas(card, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#fdf6e3' // si lo pones null, puede quedar transparente [web:34]
+  });
+
+  const dataURL = canvas.toDataURL('image/jpeg', 0.95); // JPEG via toDataURL [web:23]
+
+  const safeName = (ultimoNPCGenerado?.nombre || 'npc')
+    .toString()
+    .trim()
+    .replace(/[^\w\-]+/g, '_')
+    .slice(0, 40);
+
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = `${safeName}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+
+
+/* ==========================================================================
+   LISTENERS (EJEMPLOS PARA TUS BOTONES)
+   ========================================================================== */
+
+// Esperar a que el DOM cargue
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Generación de Ciudadano
+    const btnCivil = document.getElementById('btn-rapido');
+    if (btnCivil) {
+        btnCivil.onclick = () => mostrarNPC(generarNPC('civil_auto'));
+    }
+
+    // NPC a medida (abre modal)
+    const btnCustom = document.getElementById('btn-custom');
+    if (btnCustom) {
+        btnCustom.onclick = () => abrirModalNPC();
+    }
+
+    // Botones del modal
+    const btnClose = document.getElementById('btn-modal-close');
+    if (btnClose) btnClose.onclick = () => cerrarModalNPC();
+
+    const btnGen = document.getElementById('btn-modal-generate');
+    if (btnGen) btnGen.onclick = () => generarDesdeModal();
+
+    // Cerrar al clickear fuera del modal + Escape
+    const backdrop = document.getElementById('npc-modal-backdrop');
+    if (backdrop) {
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) cerrarModalNPC();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') cerrarModalNPC();
+    });
+
+    // Función ayudante para Aventureros
+    const clickAventurero = (id, subTipo) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.onclick = () => {
+                const lvl = parseInt(document.getElementById('nivel-input').value) || 1;
+                mostrarNPC(generarNPC('aventurero', subTipo, lvl));
+            };
+        }
+    };
+    const libBackdrop = document.getElementById('library-modal-backdrop');
+    if (libBackdrop) {
+      libBackdrop.addEventListener('click', (e) => {
+        if (e.target === libBackdrop) cerrarBibliotecaModal();
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarBibliotecaModal();
+    });
+
+
+    // Mapeo de botones de clase
+    clickAventurero('btn-guerrero', 'combate_Guerrero');
+    clickAventurero('btn-barbaro', 'combate_Barbaro');
+    clickAventurero('btn-sigilo', 'combate_Sigilo');
+    clickAventurero('btn-monje' , 'combate_Monje');
+    clickAventurero('btn-divino', 'spellcaster_Divino');
+    clickAventurero('btn-arcano', 'spellcaster_Arcano');
+    clickAventurero('btn-naturaleza', 'spellcaster_Naturaleza');
+    clickAventurero('btn-paladin', 'hibrido_Paladin');
+    clickAventurero('btn-ranger', 'hibrido_Ranger');
+
+
+    // Listener GLOBAL para botones dinámicos (los que aparecen dentro de la tarjeta)
+    document.addEventListener('click', (e) => {
+        if (!e.target) return;
+
+        if (e.target.id === 'btn-save-local') {
+            guardarNPC();
+        } 
+        else if (e.target.id === 'btn-clear') {
+          limpiarVista();
+        }
+
+        else if (e.target.id === 'btn-copy-prompt') {
+            copiarPromptIA();
+        }
+        else if (e.target.id === 'btn-export-img') {
+          exportarJPG();
+        }
+
+        if (e.target.id === 'btn-abrir-biblioteca') {
+            abrirBibliotecaModal();
+        }
+        if (e.target.id === 'btn-library-close') {
+            cerrarBibliotecaModal();
+        }
+        // Click en Abrir/Eliminar dentro de la lista   
+        const action = e.target.dataset?.action;
+        const id = e.target.dataset?.id;
+
+        if (action === 'open' && id) abrirNPCGuardadoPorId(id);
+        if (action === 'delete' && id) eliminarNPCGuardadoPorId(id);
+    });
+});
