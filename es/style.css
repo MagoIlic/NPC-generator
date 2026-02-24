@@ -1,0 +1,510 @@
+/* ==========================================================================
+   ESTILOS GLOBALES Y FONDO
+   ========================================================================== */
+body {
+    margin: 0;
+    font-family: 'Lora', serif;
+    background: radial-gradient(circle at center, #1f1813 0%, #16110d 60%, #0f0b08 100%);
+    color: #f4e4bc;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    min-height: 100vh;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("https://www.transparenttextures.com/patterns/old-map.png");
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 1px; }
+
+.container { 
+    max-width: 900px; 
+    width: 100%;
+    min-height: calc(100vh - 40px); /* 20px padding arriba + 20px abajo del body */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   BOTONES Y CONTROLES
+   ========================================================================== */
+.botones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.btn {
+    font-family: 'Cinzel', serif;
+    padding: 10px;
+    cursor: pointer;
+    color: #f1c40f;
+    border: 1px solid #d4af37;
+    border-radius: 6px;
+    background: #2c3e50;
+    transition: all 0.2s ease;
+}
+
+.btn:hover { filter: brightness(1.3); transform: translateY(-2px); }
+
+/* Colores de botones */
+.btn.tipo-ciudadano { background: linear-gradient(145deg, #1e3d2f, #162c22); }
+.btn.tipo-combate { background: linear-gradient(145deg, #4a1f1f, #331515); }
+.btn.tipo-hibrido { background: linear-gradient(145deg, #1f2f4a, #162133); }
+.btn.tipo-spellcaster { background: linear-gradient(145deg, #3b1f4a, #291533); }
+
+/* =========================
+   CONTROLES SUPERIORES
+   ========================= */
+.controles { margin-top: 10px; }
+
+.nivel-control{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Ajuste del input para que se parezca a los botones */
+#nivel-input{
+  height: 36px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 0px solid #d4af37;
+  background: rgba(255,255,255,0.08);
+  color: #f4e4bc;
+  font-family: 'Cinzel', serif;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+
+
+
+/* Responsive: en pantallas chicas deja que baje sin romper */
+@media (max-width: 520px){
+  .npc-quick-row{
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+}
+
+/* Fila superior centrada y con anchos tipo grid */
+.npc-quick-row{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 10px auto 0 auto;   /* centra el bloque */
+  width: 100%;         /* el bloque toma el ancho justo */
+}
+
+/* Que ambos botones llenen su celda (mismo ancho exacto) */
+.npc-quick-row .btn{
+  width: 100%;
+}
+
+/* El selector de nivel como un item más de la grilla */
+.nivel-grid-item{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 7px;
+  border: 1px solid #d4af37;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  box-sizing: border-box;
+}
+
+.nivel-grid-item label{
+  font-family: 'Cinzel', serif;
+  color: #f1c40f;
+  white-space: nowrap;
+}
+
+
+
+
+/* ==========================================================================
+   TARJETA DEL NPC
+   ========================================================================== */
+.npc-card {
+    background: #fdf6e3;
+    color: #2c3e50;
+    padding: 30px;
+    border-radius: 4px;
+    border-left: 12px solid #333;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+}
+
+.npc-card.tipo-ciudadano { border-left-color: #32664f; }
+.npc-card.tipo-combate { border-left-color: #753131; }
+.npc-card.tipo-hibrido { border-left-color: #3a588a; }
+.npc-card.tipo-spellcaster { border-left-color: #794196; }
+
+.header{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.header-titles {
+    flex: 1;
+}
+
+.header h2 { margin: 0; font-size: 2.2rem; color: #1a1a1a; }
+
+.badge {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem; /* Raza más grande */
+    color: #5d4037;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+/* ==========================================================================
+   ICONOS (CORAZÓN Y ESCUDO) - SOLO CONTORNO
+   ========================================================================== */
+.stats-container {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-start;
+    margin: 0;
+}
+.statblock-line{
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  line-height: 1.25;
+  margin: 2px 0;
+}
+
+.statblock-label{ min-width: 100px; } /* alinea etiquetas (CD/Salvaciones/Ataques) */
+.statblock-sub{ min-width: 130px; }   /* alinea sub-etiquetas de Ataques */
+.statblock-value{ flex: 1; }
+
+.statblock-sep{
+  height: 8px; /* “salto” visual entre secciones */
+}
+
+
+.stat-wrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.icon-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.stat-value {
+    position: relative;
+    z-index: 2;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+    font-size: 1.3rem;
+    color: #1a1a1a; /* Texto oscuro para que se vea bien dentro del contorno */
+}
+
+/* Velocidad: cuadrado negro, sin relleno */
+.stat-wrapper.stat-speed{
+  background: transparent;
+  border: none;
+  box-shadow: inset 0 0 0 4px #111;
+  border-radius: 6px;
+  flex-direction: column;
+}
+.stat-wrapper.stat-speed .stat-value{
+  color: #111;
+  line-height: 1;
+}
+.stat-subvalue{
+  color: #111;
+  opacity: 0.9;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+/* Iniciativa: círculo verde, sin relleno */
+.stat-wrapper.stat-ini{
+  background: transparent;
+  box-shadow: inset 0 0 0 4px #2e7d32;
+  border: none;
+  border-radius: 999px;
+}
+.stat-wrapper.stat-ini .stat-value{
+  color: #2e7d32;
+}
+
+
+/* Colores de los contornos */
+.heart-stroke { stroke: #c62828; stroke-width: 1.5; fill: none; }
+.shield-stroke { stroke: #455a64; stroke-width: 1.5; fill: none; }
+
+/* ==========================================================================
+   LAYOUT Y BLOQUES
+   ========================================================================== */
+.npc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+@media (max-width: 650px) { .npc-grid { grid-template-columns: 1fr; } }
+
+.npc-card h3 {
+    border-bottom: 2px solid rgba(0,0,0,0.1);
+    margin: 15px 0 8px 0;
+    font-size: 1rem;
+    text-transform: uppercase;
+}
+
+
+.statblock-container {
+    background: #f4ecd8;
+    padding: 12px;
+    border-left: 4px solid #a68a4d;
+    font-size: 0.9rem;
+}
+
+.especial-box, .magia-box {
+    background: #e8f4f8;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border: 1px solid #bcd0d7;
+    margin: 0 0 6px 0;
+}
+.especial-box p:last-child{
+  margin-bottom: 0;
+}
+
+.flavor-text {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    color: #1a1a1a; /* Contraste alto */
+}
+
+.flavor-text p strong {
+    color: #5d4037;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+
+
+/* Contenedor de botones de acción */
+.npc-actions-container {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;   /* botones arriba, crédito abajo */
+  gap: 10px;
+  margin-top: 30px;
+  width: 100%;
+}
+
+/* Estilo de los botones (más modernos para que se note que son interfaz) */
+.btn-action {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #d4af37;
+    color: #f4e4bc;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.btn-action-modal {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #d4af37;
+    color: #1a110a;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.npc-actions-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;          /* si no cabe, que haga wrap bonito */
+}
+
+.btn-action:hover {
+    background: #d4af37;
+    color: #1a110a;
+    transform: translateY(-2px);
+}
+
+
+.btn-action-modal:hover {
+    background: #d4af37;
+    color: #1a110a;
+    transform: translateY(-2px);
+}
+
+
+.btn-save {
+    border-color: #4caf50;
+    color: #4caf50;
+}
+
+.btn-save:hover {
+    background: #4caf50;
+    color: white;
+}
+
+/* Firma del diseñador */
+.designer-credit {
+    display: flex;
+    margin-top: 0px;
+    font-family: 'Lora', serif;
+    font-size: 0.8rem;
+    color: rgba(244, 228, 188, 0.6);
+    letter-spacing: 1px;
+    justify-content: center;
+}
+.designer-credit--static{
+  margin-top: 18px;
+}
+
+
+/* espaciadores  | <div class="spacer-md"></div> */
+.spacer-small { height: 10px; }
+.spacer-mid { height: 30px; }
+.spacer-large { height: 60px; }
+
+/* ========================================================================== 
+   MODAL: NPC A MEDIDA
+   ========================================================================== */
+.modal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+}
+.modal-backdrop.is-open{ display: flex; }
+
+.modal{
+  width: min(900px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fdf6e3;
+  color: #2c3e50;
+  border-left: 12px solid #32664f;
+  border-radius: 6px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+  padding: 18px 18px 14px 18px;
+}
+.modal-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-header h2{
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  color: #1a1a1a;
+}
+.modal-body{ margin-top: 10px; }
+.modal-help{ margin: 0 0 10px 0; opacity: 0.9; }
+.modal-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 650px){
+  .modal-grid{ grid-template-columns: 1fr; }
+}
+.modal-section h3{
+  margin: 10px 0 6px 0;
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+}
+.modal-options{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  background: #f4ecd8;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 240px;
+  overflow: auto;
+}
+.opt{ display: flex; gap: 8px; align-items: flex-start; }
+.opt input{ margin-top: 3px; }
+
+.modal-footer{
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.library-list{
+  display: grid;
+  gap: 10px;
+}
+
+.library-item{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f4ecd8;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 6px;
+}
+
+.library-item-title{
+  color: #2c3e50;
+}
+
+.library-item-actions{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-danger{
+  border-color: #c62828;
+  color: #c62828;
+}
+.btn-danger:hover{
+  background: #c62828;
+  color: white;
+}
