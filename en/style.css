@@ -508,3 +508,67 @@ h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 1px; }
   background: #c62828;
   color: white;
 }
+/* ---- Mobile fix pack ---- */
+html, body { max-width: 100%; overflow-x: hidden; }
+
+#resultado { width: 100%; }
+
+.npc-card { overflow-wrap: anywhere; word-break: break-word; }
+
+@media (max-width: 520px) {
+  body { padding: 10px; }
+
+  .container {
+    min-height: auto;
+    padding: 12px 0;
+  }
+
+  h1 { font-size: 1.6rem; text-align: center; }
+
+  /* Tarjeta */
+  .npc-card { padding: 16px; }
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .header h2 { font-size: 1.6rem; }
+  .badge { font-size: 1rem; }
+
+  /* Stats: más compacto y que pueda envolver */
+  .stats-container { gap: 10px; flex-wrap: wrap; }
+  .stat-wrapper { width: 48px; height: 48px; }
+  .stat-value { font-size: 1.05rem; }
+
+  /* Grid principal */
+  .npc-grid { gap: 16px; }
+
+  /* Statblock: elimina min-width que rompe en móvil */
+  .statblock-line { flex-wrap: wrap; }
+  .statblock-label, .statblock-sub { min-width: 0; }
+  
+  /* Botonera: 1 columna en pantallas chicas */
+  .botones-grid { grid-template-columns: 1fr; }
+  .btn { padding: 12px 10px; }
+
+  /* Nivel: que no apriete */
+  .nivel-grid-item { flex-wrap: wrap; }
+  #nivel-input { width: 100%; }
+
+  /* Acciones: botones full-width (mejor touch) */
+  .npc-actions-container { align-items: stretch; }
+  .npc-actions-buttons { justify-content: stretch; }
+  .btn-action { width: 100%; }
+}
+
+/* Modal a pantalla completa en móvil */
+@media (max-width: 520px) {
+  .modal-backdrop { padding: 0; }
+  .modal {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+}
+
