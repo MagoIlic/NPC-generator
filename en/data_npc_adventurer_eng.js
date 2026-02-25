@@ -429,7 +429,7 @@ const progresion_global = {
         },
 
         spell: {
-            hibrido: null,
+            hibrido: 1,
             spellcaster: 4
         },
 
