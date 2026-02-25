@@ -202,7 +202,7 @@ function construirStatblockFuerteDesdeDebil(sbDebil, nivel) {
 
 function construirPerfilCombateDebil(npc) {
   return {
-    etiqueta: "Débil",
+    etiqueta: "Weak",
     hp: npc.hp,
     ac: npc.ac,
     iniciativa: npc.iniciativa,
@@ -219,7 +219,7 @@ function construirPerfilCombateFuerte(npc, debil) {
   const nivel = debil.nivel || npc.nivel || 1;
 
   return {
-    etiqueta: "Fuerte",
+    etiqueta: "Strong",
     hp: Math.max(1, Math.ceil((debil.hp || 1) * COMBATE_FUERTE_CFG.hpMult)),
     ac: (debil.ac ?? 10) + COMBATE_FUERTE_CFG.acPlus,
     iniciativa: (debil.iniciativa ?? 0) + COMBATE_FUERTE_CFG.iniPlus,
@@ -888,7 +888,7 @@ function mostrarNPC(npc) {
 
           <div class="stat-wrapper stat-speed" title="Velocidad" data-label="Speed">
             <span class="stat-value">${perfil.velocidad}</span>
-            <span class="stat-subvalue">pies</span>
+            <span class="stat-subvalue">feet</span>
           </div>
         </div>
       `;
@@ -902,7 +902,7 @@ function mostrarNPC(npc) {
         <div class="statblock-container">
 
           <div class="statblock-line">
-            <span class="statblock-label"><strong>Salvaciones</strong></span>
+            <span class="statblock-label"><strong>Saves</strong></span>
           </div>
           <div class="statblock-line">
             <span class="statblock-value">${sb.saves?.principal ?? ""}, ${sb.saves?.Base ?? ""}, ${sb.saves?.Mala ?? ""}</span>
@@ -911,16 +911,16 @@ function mostrarNPC(npc) {
           <div class="statblock-sep"></div>
 
           <div class="statblock-line">
-            <span class="statblock-label"><strong>Ataques</strong></span>
+            <span class="statblock-label"><strong>Attacks</strong></span>
           </div>
 
           <div class="statblock-line">
-            <span class="statblock-sub"><strong>Cuerpo a cuerpo</strong></span>
+            <span class="statblock-sub"><strong>Melee: </strong></span>
             <span class="statblock-value">${sb.ataqueMelee}, hit ${sb.melee}</span>
           </div>
 
           <div class="statblock-line">
-            <span class="statblock-sub"><strong>A Distancia</strong></span>
+            <span class="statblock-sub"><strong>Range</strong></span>
             <span class="statblock-value">${sb.ataqueRange}, hit ${sb.range} ${sb.ataqueD} pies</span>
           </div>
         </div>
@@ -940,14 +940,14 @@ function mostrarNPC(npc) {
 
       if (tieneMagia) {
         if (perfil.magia.trucos?.length) {
-          contenidoMagia += `<p><strong>Trucos</strong> ${perfil.magia.trucos.join(", ")}</p>`;
+          contenidoMagia += `<p><strong>Cantrips</strong> ${perfil.magia.trucos.join(", ")}</p>`;
         }
 
         Object.keys(perfil.magia.porNivel || {}).sort().forEach(nivelKey => {
           const hechizos = perfil.magia.porNivel[nivelKey] || [];
           const usos = perfil.spellsPorDia[nivelKey] || 0;
           if (hechizos.length === 0 || usos === 0) return;
-          contenidoMagia += `<p><strong>Nivel ${nivelKey.replace("lvl","")} (${usos}/día)</strong> ${hechizos.join(", ")}</p>`;
+          contenidoMagia += `<p><strong>Level ${nivelKey.replace("lvl","")} (${usos}/day)</strong> ${hechizos.join(", ")}</p>`;
         });
       }
 
@@ -956,7 +956,7 @@ function mostrarNPC(npc) {
         contenidoMagia = `<p style="margin:0; opacity:.85;">(Sin lista de hechizos)</p>`;
       }
 
-      return `<div class="magia-box"><h3>Magia</h3>${lanzamientoHTML}${contenidoMagia}</div>`;
+      return `<div class="magia-box"><h3>Magic</h3>${lanzamientoHTML}${contenidoMagia}</div>`;
     }
 
     function renderLanzamiento(perfil) {
@@ -966,8 +966,8 @@ function mostrarNPC(npc) {
       if (dc == null && atk == null) return "";
 
       const parts = [];
-      if (dc != null) parts.push(`<span><strong>CD:</strong> ${dc}</span>`);
-      if (atk != null) parts.push(`<span><strong>Ataque:</strong> ${atk >= 0 ? "+" : ""}${atk}</span>`);
+      if (dc != null) parts.push(`<span><strong>DC:</strong> ${dc}</span>`);
+      if (atk != null) parts.push(`<span><strong>Attack:</strong> ${atk >= 0 ? "+" : ""}${atk}</span>`);
 
       return `<p class="magia-meta">${parts.join(" &nbsp; | &nbsp; ")}</p>`;
     }
@@ -995,7 +995,7 @@ function mostrarNPC(npc) {
       function renderCombatPanel(perfil, variantClass) {
         return `
           <section class="combat-panel ${variantClass}">
-            <h3>Combate - Nivel ${perfil.nivel} - ${perfil.etiqueta}</h3>
+            <h3>Combat - Level ${perfil.nivel} - ${perfil.etiqueta}</h3>
             ${renderStatsIcons(perfil)}
             ${renderStatblock(perfil.statblock)}
             <div class="especial-box">${renderEspecialPorPuntos(perfil.especial)}</div>
@@ -1017,18 +1017,18 @@ function mostrarNPC(npc) {
               </div>
 
               <div class="col-social">
-                <h3>Interacción</h3>
+                <h3>Social</h3>
                 ${claseUbicacionHTML}
-                <p><strong>Profesión</strong> ${npc.profesion}</p>
-                <p><strong>Físico</strong> ${npc.fisico}</p>
-                <p><strong>Voz/Acting</strong> ${npc.voz}</p>
-                <p><strong>Actitud</strong> ${npc.personalidad}</p>
-                ${npc.ropa ? `<p><strong>Ropa</strong> ${npc.ropa}</p>` : ""}
-                <p><strong>Equipo</strong> ${npc.equipo}</p>
+                <p><strong>Profession</strong> ${npc.profesion}</p>
+                <p><strong>Looks</strong> ${npc.fisico}</p>
+                <p><strong>Voice/Acting</strong> ${npc.voz}</p>
+                <p><strong>Attitude</strong> ${npc.personalidad}</p>
+                ${npc.ropa ? `<p><strong>Cloathing</strong> ${npc.ropa}</p>` : ""}
+                <p><strong>Equipment</strong> ${npc.equipo}</p>
 
                 <div class="flavor-text">
                   <p><strong>Trinket</strong> ${npc.trinket}</p>
-                  <p><strong>Motivación</strong> ${npc.want}</p>
+                  <p><strong>Want</strong> ${npc.want}</p>
                   <p><strong>Twist</strong> <em>${npc.twist}</em></p>
                 </div>
               </div>
@@ -1122,7 +1122,7 @@ function construirStatblock(subTipo, nivel) {
         dc: bonoHechizo ? (8 + bonoHechizo) : null,
         melee: `${dataBase.melee_dado} (${dataBase.melee_tipo})`,
         range: `${dataBase.range_dado} (${dataBase.range_tipo})`,
-        saves: salvaciones
+        saves: 
     };
 }
 
