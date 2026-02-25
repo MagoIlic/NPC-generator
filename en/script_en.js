@@ -656,11 +656,11 @@ function mostrarNPC(npc) {
 
     const statsIconsHTML = `
         <div class="stats-container">
-            <div class="stat-wrapper stat-hp" title="HP" data-label="Hit Points">
+            <div class="stat-wrapper stat-hp" title="HP" data-label="HP">
                 ${heartSVG}
                 <span class="stat-value">${npc.hp}</span>
             </div>
-            <div class="stat-wrapper stat-ac" title="AC" data-label="Armor Class">
+            <div class="stat-wrapper stat-ac" title="AC" data-label="AC">
                 ${shieldSVG}
                 <span class="stat-value">${npc.ac}</span>
             </div>
