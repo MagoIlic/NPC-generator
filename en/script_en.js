@@ -632,7 +632,7 @@ function mostrarNPC(npc) {
 
     if (npc.arquetipoNombre == "spellcaster Arcano") claseProfesion = "Arcanist"
     if (npc.arquetipoNombre == "spellcaster Divino") claseProfesion = "Devout"
-    if (npc.arquetipoNombre == "spellcaster Naturaleza") claseProfesion = "Chaman"
+    if (npc.arquetipoNombre == "spellcaster Naturaleza") claseProfesion = "Shaman"
     if (npc.arquetipoNombre == "hibrido Paladin") claseProfesion = "Oathbringer"
     if (npc.arquetipoNombre == "hibrido Ranger") claseProfesion = "Scout"
     if (npc.arquetipoNombre == "combate Guerrero") claseProfesion = "Knight"
