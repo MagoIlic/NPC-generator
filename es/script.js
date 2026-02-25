@@ -1046,7 +1046,7 @@ function mostrarNPC(npc) {
                         <span class="badge">${npc.especie}</span>
                         ${tipoCategoriaHTML}
                     </div>
-                    ${statsIconsHTML}
+                    ${renderStatsIcons(npc)}
                 </div>
                 
                 ${claseUbicacionHTML}
