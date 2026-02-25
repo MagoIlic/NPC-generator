@@ -571,4 +571,26 @@ html, body { max-width: 100%; overflow-x: hidden; }
     border-radius: 0;
   }
 }
+/* Texto bajo cada símbolo */
+.stats-container { padding-bottom: 16px; }
+
+.stat-wrapper::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 6px);
+  font-family: Cinzel, serif;
+  font-size: 0.4rem;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Mismo color que el símbolo (según tus estilos actuales) */
+.stat-wrapper.stat-hp::after { color: #c62828; }   /* heart-stroke [file:5] */
+.stat-wrapper.stat-ac::after { color: #455a64; }   /* shield-stroke [file:5] */
+.stat-wrapper.stat-ini::after { color: #2e7d32; }  /* círculo ini [file:5] */
+.stat-wrapper.stat-speed::after { color: #111; }   /* cuadrado speed [file:5] */
+
 
