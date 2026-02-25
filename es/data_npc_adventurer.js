@@ -345,7 +345,7 @@ const progresion_global = {
             spellcaster: { melee: 2, range: 2, d: 20}
         },
         spell: {
-            hibrido: null,
+            hibrido: 1,
             spellcaster: 4
         },
         salvaciones: { 
