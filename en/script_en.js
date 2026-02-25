@@ -22,7 +22,221 @@ function conSigno(n) {
   return num >= 0 ? `+${num}` : `${num}`;
 }
 
+// --------------------------
+// COMBATE: DÉBIL vs FUERTE
+// --------------------------
+const COMBATE_FUERTE_CFG = {
+  hpMult: 1.8,
+  acPlus: 3,
+  iniPlus: 1,
+  speedPlus: 0,
 
+  atkPlus: 3,
+  spellPlus: 3,
+  dcPlus: 2,
+
+  // Salvaciones (diferenciadas)
+  savePrincipalPlus: 2,
+  saveBasePlus: 1,
+  saveMalaPlus: 0,
+
+  // Daño: 1dX -> 1dX + (nivel * mult)
+  damagePerLevelMult: 1,
+
+  // Hechizos/día: suma usos por nivel de conjuro
+  spellsPerDayBasePlus: 1,
+  spellsPerDayExtraAtLevel: 7,      // desde aquí, +1 extra
+  spellsPerDayExtraPlus: 1,
+
+  alcancePlus: 0
+};
+
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function deepCopy(obj) {
+  return obj ? JSON.parse(JSON.stringify(obj)) : obj;
+}
+
+function bumpNumbersInText(text, delta) {
+  // Suma delta a cada número con signo opcional: "+3", "3", "-2"
+  if (text == null) return text;
+  const s = String(text);
+
+  return s.replace(/([+-]?\d+)/g, (m) => {
+    const n = parseInt(m, 10);
+    if (Number.isNaN(n)) return m;
+    const v = n + delta;
+
+    // Mantén el "+" explícito si antes lo tenía, o si el número era parte de "+N"
+    if (m.startsWith("+")) return (v >= 0 ? `+${v}` : `${v}`);
+    return `${v}`;
+  });
+}
+
+function addBonusToFirstDice(dmgStr, bonus) {
+  // Encuentra el primer "XdY" dentro del string y le agrega/actualiza "+N"
+  if (!dmgStr || typeof dmgStr !== "string") return dmgStr;
+
+  const re = /(\d+\s*d\s*\d+)\s*(?:\+\s*(\d+))?/i;
+  const m = re.exec(dmgStr);
+  if (!m) return dmgStr;
+
+  const diceRaw = m[1];
+  const dice = diceRaw.replace(/\s+/g, ""); // "1 d 8" -> "1d8"
+  const existing = m[2] ? parseInt(m[2], 10) : 0;
+  const total = existing + bonus;
+
+  const before = dmgStr.slice(0, m.index);
+  const after = dmgStr.slice(m.index + m[0].length);
+
+  const plusPart = total > 0 ? `+${total}` : (total < 0 ? `${total}` : "");
+  return `${before}${dice}${plusPart}${after}`;
+}
+
+function upgradeSpellsPorDia(spellsPorDia, magia, nivel) {
+  if (!spellsPorDia) return spellsPorDia;
+
+  const out = deepCopy(spellsPorDia);
+
+  // cuánto sube por default
+  let plus = COMBATE_FUERTE_CFG.spellsPerDayBasePlus;
+  if (nivel >= COMBATE_FUERTE_CFG.spellsPerDayExtraAtLevel) {
+    plus += COMBATE_FUERTE_CFG.spellsPerDayExtraPlus;
+  }
+
+  for (const k of Object.keys(out)) {
+    const usos = Number(out[k] ?? 0);
+
+    // Si ya tenía usos, súbelo
+    if (usos > 0) {
+      out[k] = usos + plus;
+      continue;
+    }
+
+    // Si no tenía usos pero en magia hay hechizos de ese nivel, dale 1 uso (o plus mínimo)
+    const hechizosEnEseNivel = magia?.porNivel?.[k]?.length || 0;
+    if (hechizosEnEseNivel > 0) {
+      out[k] = Math.max(1, plus);
+    } else {
+      out[k] = usos; // se queda 0
+    }
+  }
+
+  return out;
+}
+
+
+function parseDice(diceStr) {
+  // Espera formato "XdY" (ej: "1d10")
+  if (!diceStr || typeof diceStr !== "string") return null;
+  const m = diceStr.trim().match(/^(\d+)\s*d\s*(\d+)$/i);
+  if (!m) return null;
+  return { x: parseInt(m[1], 10), y: parseInt(m[2], 10) };
+}
+
+function stepDieY(y, steps = 1) {
+  const ladder = [4, 6, 8, 10, 12];
+  const idx = ladder.indexOf(y);
+  if (idx === -1) return y; // si no es un dado estándar, lo dejamos
+  const nextIdx = idx + steps;
+  if (nextIdx <= ladder.length - 1) return ladder[nextIdx];
+  // si ya estás en d12 y subes más, mantén d12
+  return 12;
+}
+
+function upgradeDice(diceStr, steps = 1) {
+  const d = parseDice(diceStr);
+  if (!d) return diceStr;
+
+  const newY = stepDieY(d.y, steps);
+  // si no pudo subir (ya en d12), aumenta cantidad de dados
+  const newX = (newY === d.y && d.y === 12) ? (d.x + 1) : d.x;
+
+  return `${newX}d${newY}`;
+}
+
+function copiarStatblock(sb) {
+  if (!sb) return null;
+  return JSON.parse(JSON.stringify(sb));
+}
+
+function construirStatblockFuerteDesdeDebil(sbDebil, nivel) {
+  if (!sbDebil) return null;
+
+  const sb = deepCopy(sbDebil);
+
+  // Ofensiva: to hit
+  if (sb.ataqueMelee != null) sb.ataqueMelee = Number(sb.ataqueMelee) + COMBATE_FUERTE_CFG.atkPlus;
+  if (sb.ataqueRange != null) sb.ataqueRange = Number(sb.ataqueRange) + COMBATE_FUERTE_CFG.atkPlus;
+
+  // Alcance
+  if (sb.ataqueD != null) sb.ataqueD = Number(sb.ataqueD) + COMBATE_FUERTE_CFG.alcancePlus;
+
+  // Daño: 1dX -> 1dX + (nivel * mult)
+  const dmgBonus = Math.max(0, Math.floor((nivel || 1) * COMBATE_FUERTE_CFG.damagePerLevelMult));
+  if (typeof sb.melee === "string") sb.melee = addBonusToFirstDice(sb.melee, dmgBonus);
+  if (typeof sb.range === "string") sb.range = addBonusToFirstDice(sb.range, dmgBonus);
+
+  // Magia
+  if (sb.hechizoBono != null) sb.hechizoBono = Number(sb.hechizoBono) + COMBATE_FUERTE_CFG.spellPlus;
+  if (sb.dc != null) sb.dc = Number(sb.dc) + COMBATE_FUERTE_CFG.dcPlus;
+
+  // Salvaciones: principal > base, mala no sube
+  if (sb.saves) {
+    // Si son números
+    if (typeof sb.saves.principal === "number") sb.saves.principal += COMBATE_FUERTE_CFG.savePrincipalPlus;
+    if (typeof sb.saves.Base === "number") sb.saves.Base += COMBATE_FUERTE_CFG.saveBasePlus;
+    if (typeof sb.saves.Mala === "number") sb.saves.Mala += COMBATE_FUERTE_CFG.saveMalaPlus;
+
+    // Si son strings tipo "Fue 3, Con 3", aplicamos suma a los números dentro del texto
+    if (typeof sb.saves.principal === "string") sb.saves.principal = bumpNumbersInText(sb.saves.principal, COMBATE_FUERTE_CFG.savePrincipalPlus);
+    if (typeof sb.saves.Base === "string") sb.saves.Base = bumpNumbersInText(sb.saves.Base, COMBATE_FUERTE_CFG.saveBasePlus);
+    if (typeof sb.saves.Mala === "string") sb.saves.Mala = bumpNumbersInText(sb.saves.Mala, COMBATE_FUERTE_CFG.saveMalaPlus);
+  }
+
+  return sb;
+}
+
+function construirPerfilCombateDebil(npc) {
+  return {
+    etiqueta: "Débil",
+    hp: npc.hp,
+    ac: npc.ac,
+    iniciativa: npc.iniciativa,
+    velocidad: npc.velocidad,
+    statblock: npc.statblock || null,
+    magia: npc.magia || null,
+    spellsPorDia: npc.spellsPorDia || null,
+    especial: npc.especial || null,
+    nivel: npc.nivel
+  };
+}
+
+function construirPerfilCombateFuerte(npc, debil) {
+  const nivel = debil.nivel || npc.nivel || 1;
+
+  return {
+    etiqueta: "Fuerte",
+    hp: Math.max(1, Math.ceil((debil.hp || 1) * COMBATE_FUERTE_CFG.hpMult)),
+    ac: (debil.ac ?? 10) + COMBATE_FUERTE_CFG.acPlus,
+    iniciativa: (debil.iniciativa ?? 0) + COMBATE_FUERTE_CFG.iniPlus,
+    velocidad: (debil.velocidad ?? 30) + COMBATE_FUERTE_CFG.speedPlus,
+
+    statblock: construirStatblockFuerteDesdeDebil(debil.statblock, nivel),
+
+    magia: debil.magia,
+    spellsPorDia: upgradeSpellsPorDia(debil.spellsPorDia, debil.magia, nivel),
+
+    especial: debil.especial,
+    nivel
+  };
+}
+
+
+//---------------------------------------
 
 function obtenerTipoGeneral(subTipo) {
 
@@ -654,80 +868,110 @@ function mostrarNPC(npc) {
             <path class="shield-stroke" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
         </svg>`;
 
-    const statsIconsHTML = `
+
+    function renderStatsIcons(perfil) {
+      return `
         <div class="stats-container">
-            <div class="stat-wrapper stat-hp" title="HP" data-label="HP">
-                ${heartSVG}
-                <span class="stat-value">${npc.hp}</span>
-            </div>
-            <div class="stat-wrapper stat-ac" title="AC" data-label="AC">
-                ${shieldSVG}
-                <span class="stat-value">${npc.ac}</span>
-            </div>
-                <div class="stat-wrapper stat-ini" title="Iniciativa" data-label="Initiative">
-                  <span class="stat-value">${conSigno(npc.iniciativa)}</span>
-                </div>
+          <div class="stat-wrapper stat-hp" title="HP" data-label="HP">
+            ${heartSVG}
+            <span class="stat-value">${perfil.hp}</span>
+          </div>
 
-                <div class="stat-wrapper stat-speed" title="Velocidad" data-label="Speed">
-                  <span class="stat-value">${npc.velocidad}</span>
-                  <span class="stat-subvalue">feet</span>
-                </div>
+          <div class="stat-wrapper stat-ac" title="AC" data-label="AC">
+            ${shieldSVG}
+            <span class="stat-value">${perfil.ac}</span>
+          </div>
+
+          <div class="stat-wrapper stat-ini" title="Iniciativa" data-label="Initiative">
+            <span class="stat-value">${conSigno(perfil.iniciativa)}</span>
+          </div>
+
+          <div class="stat-wrapper stat-speed" title="Velocidad" data-label="Speed">
+            <span class="stat-value">${perfil.velocidad}</span>
+            <span class="stat-subvalue">pies</span>
+          </div>
         </div>
+      `;
+    }
 
+// --- BLOQUE DE MECÁNICAS ---
+    function renderStatblock(sb) {
+      if (!sb) return "";
 
-    `;
-
-
-    // --- BLOQUE DE MECÁNICAS ---
-    let statblockHTML = "";
-    if (npc.statblock) {
-      statblockHTML = `
+      return `
         <div class="statblock-container">
-          ${npc.statblock.dc ? `
-            <div class="statblock-line">
-              <span class="statblock-label"><strong>DC:</strong></span>
-              <span class="statblock-value">${npc.statblock.dc} (+${npc.statblock.hechizoBono})</span>
-            </div>
-          ` : ""}
 
           <div class="statblock-line">
-            <span class="statblock-label"><strong>Saves:</strong></span>
+            <span class="statblock-label"><strong>Salvaciones</strong></span>
           </div>
           <div class="statblock-line">
-            <span class="statblock-value">${npc.statblock.saves.principal}, ${npc.statblock.saves.Base}, ${npc.statblock.saves.Mala}</span>
+            <span class="statblock-value">${sb.saves?.principal ?? ""}, ${sb.saves?.Base ?? ""}, ${sb.saves?.Mala ?? ""}</span>
           </div>
 
           <div class="statblock-sep"></div>
 
           <div class="statblock-line">
-            <span class="statblock-label"><strong>Attacks:</strong></span>
+            <span class="statblock-label"><strong>Ataques</strong></span>
           </div>
+
           <div class="statblock-line">
-            <span class="statblock-sub"><strong>Melee:</strong></span>
-            <span class="statblock-value">+${npc.statblock.ataqueMelee}, hit: ${npc.statblock.melee}</span>
+            <span class="statblock-sub"><strong>Cuerpo a cuerpo</strong></span>
+            <span class="statblock-value">${sb.ataqueMelee}, hit ${sb.melee}</span>
           </div>
+
           <div class="statblock-line">
-            <span class="statblock-sub"><strong>Range:</strong></span>
-            <span class="statblock-value">+${npc.statblock.ataqueRange}, hit: ${npc.statblock.range} (${npc.statblock.ataqueD} feet)</span>
+            <span class="statblock-sub"><strong>A Distancia</strong></span>
+            <span class="statblock-value">${sb.ataqueRange}, hit ${sb.range} ${sb.ataqueD} pies</span>
           </div>
         </div>
       `;
     }
 
 
-    let magiaHTML = "";
-    if (npc.magia && npc.spellsPorDia) {
-        let contenidoMagia = "";
-        if (npc.magia.trucos?.length) contenidoMagia += `<p><strong>Cantrips:</strong> ${npc.magia.trucos.join(", ")}</p>`;
-        Object.keys(npc.magia.porNivel).sort().forEach(nivelKey => {
-            const hechizos = npc.magia.porNivel[nivelKey];
-            const usos = npc.spellsPorDia[nivelKey] || 0;
-            if (hechizos.length > 0 && usos > 0) {
-                contenidoMagia += `<p><strong>Level ${nivelKey.replace("lvl", "")} (${usos}/day):</strong> ${hechizos.join(", ")}</p>`;
-            }
+    // --- BLOQUE DE MAGIA ---
+
+    function renderMagia(perfil) {
+      const lanzamientoHTML = renderLanzamiento(perfil);
+
+      const tieneMagia = !!(perfil.magia && perfil.spellsPorDia);
+      if (!tieneMagia && !lanzamientoHTML) return "";
+
+      let contenidoMagia = "";
+
+      if (tieneMagia) {
+        if (perfil.magia.trucos?.length) {
+          contenidoMagia += `<p><strong>Trucos</strong> ${perfil.magia.trucos.join(", ")}</p>`;
+        }
+
+        Object.keys(perfil.magia.porNivel || {}).sort().forEach(nivelKey => {
+          const hechizos = perfil.magia.porNivel[nivelKey] || [];
+          const usos = perfil.spellsPorDia[nivelKey] || 0;
+          if (hechizos.length === 0 || usos === 0) return;
+          contenidoMagia += `<p><strong>Nivel ${nivelKey.replace("lvl","")} (${usos}/día)</strong> ${hechizos.join(", ")}</p>`;
         });
-        if (contenidoMagia) magiaHTML = `<div class="magia-box"><h3>Magic</h3>${contenidoMagia}</div>`;
+      }
+
+      // Si solo hay lanzamiento y no hay hechizos, igual mostramos algo corto
+      if (!contenidoMagia && lanzamientoHTML) {
+        contenidoMagia = `<p style="margin:0; opacity:.85;">(Sin lista de hechizos)</p>`;
+      }
+
+      return `<div class="magia-box"><h3>Magia</h3>${lanzamientoHTML}${contenidoMagia}</div>`;
     }
+
+    function renderLanzamiento(perfil) {
+      const dc = perfil?.statblock?.dc;
+      const atk = perfil?.statblock?.hechizoBono;
+
+      if (dc == null && atk == null) return "";
+
+      const parts = [];
+      if (dc != null) parts.push(`<span><strong>CD:</strong> ${dc}</span>`);
+      if (atk != null) parts.push(`<span><strong>Ataque:</strong> ${atk >= 0 ? "+" : ""}${atk}</span>`);
+
+      return `<p class="magia-meta">${parts.join(" &nbsp; | &nbsp; ")}</p>`;
+    }
+
 
     // 3. Construimos el bloque exterior de acciones y firma
     const accionesHTML = `
@@ -743,53 +987,60 @@ function mostrarNPC(npc) {
     `;
     ultimoNPCGenerado = npc; // Guardamos el objeto para los botones
 
-    // --- RENDER FINAL ---
-    let contenidoFinal = "";
-
+  // --- RENDER FINAL ---
     if (npc.esAventurero) {
-        contenidoFinal = `
-            <div class="npc-card ${claseColor}">
-                <div class="header">
-                    <div class="header-titles">
-                        <h2>${npc.nombre}</h2>
-                        <span class="badge">${npc.especie} - ${claseProfesion}</span>
-                        ${tipoCategoriaHTML}
-                    </div>
-                    
-                </div>
+      const debil = construirPerfilCombateDebil(npc);
+      const fuerte = construirPerfilCombateFuerte(npc, debil);
 
-                <div class="npc-grid">
-                    <div class="col-social">
-                        <h3>Social</h3>
-                        ${claseUbicacionHTML}
-                        
-
-                        <p><strong>Trade:</strong> ${npc.profesion}</p>
-                        <p><strong>Looks:</strong> ${npc.fisico}</p>
-                        <p><strong>Voice/Acting:</strong> ${npc.voz}</p>
-                        <p><strong>Attitude:</strong> ${npc.personalidad}</p>
-                        ${npc.ropa ? `<p><strong>Clothes:</strong> ${npc.ropa}</p>` : ""}
-                        <p><strong>Equipment:</strong> ${npc.equipo}</p>
-                        
-                        <div class="flavor-text">
-                            <p><strong>Trinket:</strong> ${npc.trinket}</p>
-                            <p><strong>Motivation:</strong> ${npc.want}</p>
-                            <p><strong>Twist:</strong> <em>"${npc.twist}"</em></p>
-                        </div>
-                    </div>
-
-                    <div class="col-stats">
-                        <h3>Combat - Level ${npc.nivel})</h3>
-                        ${statsIconsHTML}
-                        ${statblockHTML}
-                        <div class="especial-box">
-                          ${renderEspecialPorPuntos(npc.especial)}
-                        </div>
-                        ${npc.magia ? magiaHTML : ""} 
-                    </div>
-                </div>
-            </div>
+      function renderCombatPanel(perfil, variantClass) {
+        return `
+          <section class="combat-panel ${variantClass}">
+            <h3>Combate - Nivel ${perfil.nivel} - ${perfil.etiqueta}</h3>
+            ${renderStatsIcons(perfil)}
+            ${renderStatblock(perfil.statblock)}
+            <div class="especial-box">${renderEspecialPorPuntos(perfil.especial)}</div>
+            ${renderMagia(perfil)}
+          </section>
         `;
+      }
+
+      contenidoFinal = `
+        <div class="npc-card ${claseColor}">
+          <div class="npc-layout">
+            <div class="npc-left">
+              <div class="header">
+                <div class="header-titles">
+                  <h2>${npc.nombre}</h2>
+                  <span class="badge">${npc.especie} - ${claseProfesion}</span>
+                  ${tipoCategoriaHTML}
+                </div>
+              </div>
+
+              <div class="col-social">
+                <h3>Interacción</h3>
+                ${claseUbicacionHTML}
+                <p><strong>Profesión</strong> ${npc.profesion}</p>
+                <p><strong>Físico</strong> ${npc.fisico}</p>
+                <p><strong>Voz/Acting</strong> ${npc.voz}</p>
+                <p><strong>Actitud</strong> ${npc.personalidad}</p>
+                ${npc.ropa ? `<p><strong>Ropa</strong> ${npc.ropa}</p>` : ""}
+                <p><strong>Equipo</strong> ${npc.equipo}</p>
+
+                <div class="flavor-text">
+                  <p><strong>Trinket</strong> ${npc.trinket}</p>
+                  <p><strong>Motivación</strong> ${npc.want}</p>
+                  <p><strong>Twist</strong> <em>${npc.twist}</em></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="npc-right">
+              ${renderCombatPanel(debil, "is-weak")}
+              ${renderCombatPanel(fuerte, "is-strong")}
+            </div>
+          </div>
+        </div>
+      `;
     } else {
         contenidoFinal = `
             <div class="npc-card ${claseColor}">
@@ -799,7 +1050,7 @@ function mostrarNPC(npc) {
                         <span class="badge">${npc.especie}</span>
                         ${tipoCategoriaHTML}
                     </div>
-                    ${statsIconsHTML}
+                    ${renderStatsIcons(npc)}
                 </div>
                 
                 ${claseUbicacionHTML}
