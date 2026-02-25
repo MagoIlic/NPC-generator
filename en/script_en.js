@@ -1122,7 +1122,7 @@ function construirStatblock(subTipo, nivel) {
         dc: bonoHechizo ? (8 + bonoHechizo) : null,
         melee: `${dataBase.melee_dado} (${dataBase.melee_tipo})`,
         range: `${dataBase.range_dado} (${dataBase.range_tipo})`,
-        saves: 
+        saves: salvaciones
     };
 }
 
