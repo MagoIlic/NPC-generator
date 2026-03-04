@@ -641,3 +641,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .stat-wrapper.stat-ac::after { color: #455a64; }   /* shield-stroke [file:5] */
 .stat-wrapper.stat-ini::after { color: #2e7d32; }  /* círculo ini [file:5] */
 .stat-wrapper.stat-speed::after { color: #111; }   /* cuadrado speed [file:5] */
+
+html {
+  scroll-behavior: smooth;
+}
