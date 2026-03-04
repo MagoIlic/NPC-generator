@@ -1071,7 +1071,15 @@ function mostrarNPC(npc) {
     }
 
     container.innerHTML = contenidoFinal + accionesHTML;
-
+ if (window.matchMedia("(max-width: 768px)").matches) {
+    const npcCardScroll = container.querySelector('.npc-card');
+    if (npcCardScroll) {
+      // Pequeño timeout para asegurar que el DOM se haya renderizado
+      setTimeout(() => {
+        npcCardScroll.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }
 }
 
 
